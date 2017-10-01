@@ -4,7 +4,7 @@ Prototype adaptor from BSD Sockets/POSIX API calls to RINA
 
 To build:
 
-    gcc -shared -fPIC interposer.c -ldl rlite/build/user/libs/librina-api.so -o libinterposer.so
+    gcc -shared -fPIC interposer.c -ldl /usr/lib/librina-api.so -o libinterposer.so
 
 To run:
 

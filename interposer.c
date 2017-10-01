@@ -10,24 +10,11 @@
  
 int socket(int domain, int type, int protocol) {
   static int (*my_socket)(int, int, int) = NULL;
-  char* dif = getenv("RINA_DIF");
-  char* local_appl = getenv("RINA_LOCAL_APPL");
   printf("socket(%d, %d, %d)...\n", domain, type, protocol);
-  int fd;
-  if ((dif != NULL) && (local_appl != NULL)) {
-    printf("  RINA_DIF=%s, RINA_LOCAL_APPL=%s => RINA interposer enabled!\n", dif, local_appl);
-    printf("  rina_open()...\n");
-    fd = rina_open();
-    printf("  ...returns %d\n", fd);
-    if (fd < 0) {
-      perror("  rina_open");
-    }
-  } else {
-    if (my_socket == NULL) {
-       my_socket = dlsym(RTLD_NEXT, "socket");
-    }
-    fd = my_socket(domain, type, protocol);
+  if (my_socket == NULL) {
+     my_socket = dlsym(RTLD_NEXT, "socket");
   }
+  int fd = my_socket(domain, type, protocol);
   printf("...returns %d\n", fd);
   return fd;
 }
@@ -50,7 +37,7 @@ int connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen) {
     printf("  ...returns %d\n", rina_fd);
     if (rina_fd >= 0) {
       printf("  RINA FD = %d - swapping for %d\n", rina_fd, sockfd);
-      rc = dup2(sockfd, rina_fd);
+      rc = (dup2(sockfd, rina_fd) > 0) ? 0 : -1;
     } else {
       perror("  rina_flow_alloc");
       rc = -1;
@@ -92,11 +79,22 @@ int listen(int sockfd, int backlog) {
   int rc;
   if ((dif != NULL) && (local_appl != NULL)) {
     printf("  RINA_DIF=%s, RINA_LOCAL_APPL=%s => RINA interposer enabled!\n", dif, local_appl);
-    printf("  rina_register(%d, \"%s\", \"%s\")...\n", sockfd, dif, local_appl);
-    rc = rina_register(sockfd, dif, local_appl, 0);
-    printf("  ...returns %d\n", sockfd);
-    if (rc < 0) {
-      perror("  rina_register");
+    printf("  rina_open()...\n");
+    int rina_fd = rina_open();
+    printf("  ...returns %d\n", rina_fd);
+    if (rina_fd >= 0) {
+      printf("  rina_register(%d, \"%s\", \"%s\")...\n", rina_fd, dif, local_appl);
+      rc = rina_register(rina_fd, dif, local_appl, 0);
+      printf("  ...returns %d\n", rc);
+      if (rc >= 0) {
+        printf("  RINA FD = %d - swapping for %d\n", rina_fd, sockfd);
+        rc = (dup2(sockfd, rina_fd) > 0) ? 0 : -1;
+      } else {
+        perror("  rina_register");
+      }
+    } else {
+      perror("  rina_open");
+      rc = -1;
     }
   } else {
     if (my_listen == NULL) {
