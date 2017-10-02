@@ -37,7 +37,8 @@ int connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen) {
     printf("  ...returns %d\n", rina_fd);
     if (rina_fd >= 0) {
       printf("  RINA FD = %d - swapping for %d\n", rina_fd, sockfd);
-      rc = (dup2(sockfd, rina_fd) > 0) ? 0 : -1;
+      rc = (dup2(rina_fd, sockfd) > 0) ? 0 : -1;
+      close(rina_fd);
     } else {
       perror("  rina_flow_alloc");
       rc = -1;
@@ -88,7 +89,8 @@ int listen(int sockfd, int backlog) {
       printf("  ...returns %d\n", rc);
       if (rc >= 0) {
         printf("  RINA FD = %d - swapping for %d\n", rina_fd, sockfd);
-        rc = (dup2(sockfd, rina_fd) > 0) ? 0 : -1;
+        rc = (dup2(rina_fd, sockfd) > 0) ? 0 : -1;
+        close(rina_fd);
       } else {
         perror("  rina_register");
       }
