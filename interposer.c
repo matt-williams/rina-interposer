@@ -5,6 +5,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <netdb.h>
 #include <errno.h>
 #include <dlfcn.h>
  
@@ -12,7 +13,7 @@ int socket(int domain, int type, int protocol) {
   static int (*my_socket)(int, int, int) = NULL;
   printf("socket(%d, %d, %d)...\n", domain, type, protocol);
   if (my_socket == NULL) {
-     my_socket = dlsym(RTLD_NEXT, "socket");
+    my_socket = dlsym(RTLD_NEXT, "socket");
   }
   int fd = my_socket(domain, type, protocol);
   printf("...returns %d\n", fd);
@@ -45,7 +46,7 @@ int connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen) {
     }
   } else {
     if (my_connect == NULL) {
-       my_connect = dlsym(RTLD_NEXT, "connect");
+      my_connect = dlsym(RTLD_NEXT, "connect");
     }
     rc = my_connect(sockfd, addr, addrlen);
   }
@@ -64,7 +65,7 @@ int bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen) {
     rc = 0;
   } else {
     if (my_bind == NULL) {
-       my_bind = dlsym(RTLD_NEXT, "bind");
+      my_bind = dlsym(RTLD_NEXT, "bind");
     }
     rc = my_bind(sockfd, addr, addrlen);
   }
@@ -100,7 +101,7 @@ int listen(int sockfd, int backlog) {
     }
   } else {
     if (my_listen == NULL) {
-       my_listen = dlsym(RTLD_NEXT, "listen");
+      my_listen = dlsym(RTLD_NEXT, "listen");
     }
     rc = my_listen(sockfd, backlog);
   }
@@ -116,7 +117,12 @@ int accept(int sockfd, struct sockaddr *addr, socklen_t *addrlen) {
   int fd;
   if ((dif != NULL) && (local_appl != NULL)) {
     printf("  RINA_DIF=%s, RINA_LOCAL_APPL=%s => RINA interposer enabled!\n", dif, local_appl);
-    sockfd = 4;
+    fd_set read_fds;
+    FD_ZERO(&read_fds);
+    FD_SET(sockfd, &read_fds);
+    printf("  select(%d, %p, NULL, NULL, NULL)...\n", sockfd + 1, &read_fds);
+    int rc = select(sockfd + 1, &read_fds, NULL, NULL, NULL);
+    printf("  returns %d\n", rc);
     printf("  rina_flow_accept(%d, NULL, NULL, 0)...\n", sockfd);
     fd = rina_flow_accept(sockfd, NULL, NULL, 0);
     printf("  ...returns %d\n", fd);
@@ -124,7 +130,7 @@ int accept(int sockfd, struct sockaddr *addr, socklen_t *addrlen) {
       struct sockaddr_in *addr_in = (struct sockaddr_in *)addr;
       addr_in->sin_family = AF_INET;
       addr_in->sin_port = htons(1234);
-      inet_aton("1.2.3.4", &addr_in->sin_addr.s_addr);
+      inet_aton("127.0.0.1", &addr_in->sin_addr.s_addr);
       *addrlen = sizeof(struct sockaddr_in);
     } else {
       perror("  rina_flow_accept");
@@ -137,4 +143,15 @@ int accept(int sockfd, struct sockaddr *addr, socklen_t *addrlen) {
   }
   printf("...returns %d\n", fd);
   return fd;
+}
+
+int getaddrinfo(const char *node, const char *service, const struct addrinfo *hints, struct addrinfo **res) {
+  static int (*my_getaddrinfo)(const char *, const char *, const struct addrinfo *, struct addrinfo **) = NULL;
+  printf("getaddrinfo(%p, %p, %p, %p)...\n", node, service, hints, res);
+  if (my_getaddrinfo == NULL) {
+    my_getaddrinfo = dlsym(RTLD_NEXT, "getaddrinfo");
+  }
+  int rc = my_getaddrinfo(node, service, hints, res);
+  printf("...returns %d\n", rc);
+  return rc;
 }
