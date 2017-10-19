@@ -8,6 +8,7 @@
 #include <netdb.h>
 #include <errno.h>
 #include <dlfcn.h>
+#include <rina/api.h>
  
 int socket(int domain, int type, int protocol) {
   static int (*my_socket)(int, int, int) = NULL;
@@ -29,13 +30,17 @@ int connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen) {
   char* local_appl = getenv("RINA_LOCAL_APPL");
   char* remote_appl = getenv("RINA_REMOTE_APPL");
   int rc;
+  struct rina_flow_spec flow_spec;
   if ((local_appl != NULL) && (remote_appl != NULL)) {
     if (verbose) printf("  RINA_DIF=%s, RINA_LOCAL_APPL=%s, RINA_REMOTE_APPL=%s => RINA interposer enabled!\n", dif, local_appl, remote_appl);
     if (verbose) printf("  rina_flow_alloc(\"%s\", \"%s\", \"%s\", NULL, 0)...\n", dif, local_appl, remote_appl);
+    flow_spec.in_order_delivery = 1;
+    flow_spec.msg_boundaries = 0;
+    flow_spec.max_loss = 0;
     int rina_fd = rina_flow_alloc(dif,
                                   local_appl,
                                   remote_appl,
-                                  NULL,
+                                  &flow_spec,
                                   0);
     if (verbose) printf("  ...returns %d\n", rina_fd);
     if (rina_fd >= 0) {
